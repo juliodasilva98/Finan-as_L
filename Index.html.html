@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LuxFinanças - Painel Financeiro Pessoal</title>
+  <meta name="description" content="LuxFinanças - Gerencie suas finanças pessoais de forma simples e elegante">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dark: {
+              bg: '#121212',
+              card: '#1E1E1E',
+              text: '#E0E0E0',
+              muted: '#9CA3AF'
+            },
+            gold: '#FFD700',
+            income: '#22c55e',
+            expense: '#ef4444'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #FFD700;
+      box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
+    }
+    .btn-gold {
+      background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+      transition: all 0.3s ease;
+    }
+    .btn-gold:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(255, 215, 0, 0.4);
+    }
+    .card {
+      background: #1E1E1E;
+      border: 1px solid rgba(255, 215, 0, 0.1);
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      border-color: rgba(255, 215, 0, 0.3);
+    }
+    .fade-in {
+      animation: fadeIn 0.5s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .shimmer {
+      background: linear-gradient(90deg, #1E1E1E 25%, #2a2a2a 50%, #1E1E1E 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body class="bg-dark-bg min-h-screen text-dark-text">
+  
+  <!-- Header -->
+  <header class="fixed top-0 left-0 right-0 bg-dark-card/95 backdrop-blur-sm border-b border-gold/20 z-50">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+      <h1 class="text-2xl font-bold">
+        <span class="text-gold">Lux</span>Finanças
+      </h1>
+      <button id="logoutBtn" class="hidden px-4 py-2 text-sm text-dark-muted hover:text-gold transition-colors">
+        Sair
+      </button>
+    </div>
+  </header>
+
+  <main class="pt-20 pb-10 px-4 max-w-6xl mx-auto">
+    
+    <!-- Auth Section -->
+    <section id="authSection" class="min-h-[80vh] flex items-center justify-center fade-in">
+      <div class="card rounded-2xl p-8 w-full max-w-md">
+        <div class="text-center mb-8">
+          <div class="w-16 h-16 bg-gold/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <h2 class="text-2xl font-bold mb-2">Bem-vindo ao <span class="text-gold">LuxFinanças</span></h2>
+          <p class="text-dark-muted">Entre com seu email para continuar</p>
+        </div>
+        
+        <form id="authForm" class="space-y-4">
+          <div>
+            <label class="block text-sm text-dark-muted mb-2">Email</label>
+            <input type="email" id="emailInput" required
+              class="w-full px-4 py-3 bg-dark-bg border border-dark-muted/30 rounded-lg text-dark-text placeholder-dark-muted"
+              placeholder="seu@email.com">
+          </div>
+          <div>
+            <label class="block text-sm text-dark-muted mb-2">Senha</label>
+            <input type="password" id="passwordInput" required minlength="6"
+              class="w-full px-4 py-3 bg-dark-bg border border-dark-muted/30 rounded-lg text-dark-text placeholder-dark-muted"
+              placeholder="Mínimo 6 caracteres">
+          </div>
+          <button type="submit" class="btn-gold w-full py-3 rounded-lg text-dark-bg font-semibold">
+            Entrar / Criar conta
+          </button>
+          <p id="authError" class="text-expense text-sm text-center hidden"></p>
+          <p id="authSuccess" class="text-income text-sm text-center hidden"></p>
+        </form>
+      </div>
+    </section>
+
+    <!-- Dashboard Section -->
+    <section id="dashboardSection" class="hidden space-y-6 fade-in">
+      
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="card rounded-xl p-6">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 bg-income/20 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-income" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>
+              </svg>
+            </div>
+            <span class="text-dark-muted text-sm">Receitas</span>
+          </div>
+          <p id="totalIncome" class="text-2xl font-bold text-income">R$ 0,00</p>
+        </div>
+        
+        <div class="card rounded-xl p-6">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 bg-expense/20 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-expense" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"/>
+              </svg>
+            </div>
+            <span class="text-dark-muted text-sm">Despesas</span>
+          </div>
+          <p id="totalExpense" class="text-2xl font-bold text-expense">R$ 0,00</p>
+        </div>
+        
+        <div class="card rounded-xl p-6">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 bg-gold/20 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+              </svg>
+            </div>
+            <span class="text-dark-muted text-sm">Saldo</span>
+          </div>
+          <p id="totalBalance" class="text-2xl font-bold text-gold">R$ 0,00</p>
+        </div>
+      </div>
+
+      <!-- Add Transaction Form -->
+      <div class="card rounded-xl p-6">
+        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+          </svg>
+          Nova Transação
+        </h3>
+        
+        <form id="transactionForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm text-dark-muted mb-2">Tipo</label>
+            <select id="txType" required
+              class="w-full px-4 py-3 bg-dark-bg border border-dark-muted/30 rounded-lg text-dark-text">
+              <option value="">Selecione...</option>
+              <option value="receita">Receita</option>
+              <option value="despesa">Despesa</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm text-dark-muted mb-2">Categoria</label>
+            <input type="text" id="txCategory" required
+              class="w-full px-4 py-3 bg-dark-bg border border-dark-muted/30 rounded-lg text-dark-text"
+              placeholder="Ex: Salário, Alimentação...">
+          </div>
+          
+          <div>
+            <label class="block text-sm text-dark-muted mb-2">Valor (R$)</label>
+            <input type="number" id="txValue" required step="0.01" min="0.01"
+              class="w-full px-4 py-3 bg-dark-bg border border-dark-muted/30 rounded-lg text-dark-text"
+              placeholder="0,00">
+          </div>
+          
+          <div>
+            <label class="block text-sm text-dark-muted mb-2">Data</label>
+            <input type="date" id="txDate" required
+              class="w-full px-4 py-3 bg-dark-bg border border-dark-muted/30 rounded-lg text-dark-text">
+          </div>
+          
+          <div class="md:col-span-2 lg:col-span-1">
+            <label class="block text-sm text-dark-muted mb-2">Descrição (opcional)</label>
+            <input type="text" id="txDescription"
+              class="w-full px-4 py-3 bg-dark-bg border border-dark-muted/30 rounded-lg text-dark-text"
+              placeholder="Detalhes...">
+          </div>
+          
+          <div class="flex items-end">
+            <button type="submit" class="btn-gold w-full py-3 rounded-lg text-dark-bg font-semibold">
+              Adicionar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Transactions List -->
+      <div class="card rounded-xl p-6">
+        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          Últimas Transações
+        </h3>
+        
+        <div id="transactionsList" class="space-y-3">
+          <p class="text-dark-muted text-center py-8">Carregando...</p>
+        </div>
+      </div>
+      
+    </section>
+  </main>
+
+  <script>
+    // Supabase Config
+    const SUPABASE_URL = "https://yqyggnvccelekzeiicvo.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxeWdnbnZjY2VsZWt6ZWlpY3ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4MTQ3MjksImV4cCI6MjA4MDM5MDcyOX0._KobMJqPoKR5BcL2TglEpnHxw2dhpifwbstjwBn-vpo";
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // DOM Elements
+    const authSection = document.getElementById('authSection');
+    const dashboardSection = document.getElementById('dashboardSection');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const authForm = document.getElementById('authForm');
+    const authError = document.getElementById('authError');
+    const authSuccess = document.getElementById('authSuccess');
+    const transactionForm = document.getElementById('transactionForm');
+    const transactionsList = document.getElementById('transactionsList');
+    const totalIncome = document.getElementById('totalIncome');
+    const totalExpense = document.getElementById('totalExpense');
+    const totalBalance = document.getElementById('totalBalance');
+
+    // Current user
+    let currentUser = null;
+
+    // Utility Functions
+    function formatCurrency(value) {
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(value);
+    }
+
+    function formatDate(dateStr) {
+      const date = new Date(dateStr + 'T00:00:00');
+      return new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }).format(date);
+    }
+
+    function showError(msg) {
+      authError.textContent = msg;
+      authError.classList.remove('hidden');
+      authSuccess.classList.add('hidden');
+    }
+
+    function showSuccess(msg) {
+      authSuccess.textContent = msg;
+      authSuccess.classList.remove('hidden');
+      authError.classList.add('hidden');
+    }
+
+    function clearMessages() {
+      authError.classList.add('hidden');
+      authSuccess.classList.add('hidden');
+    }
+
+    function getCurrentMonthRange() {
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      return {
+        start: firstDay.toISOString().split('T')[0],
+        end: lastDay.toISOString().split('T')[0]
+      };
+    }
+
+    // Auth Functions
+    async function handleAuth(e) {
+      e.preventDefault();
+      clearMessages();
+      
+      const email = document.getElementById('emailInput').value.trim();
+      const password = document.getElementById('passwordInput').value;
+
+      if (!email || !password) {
+        showError('Por favor, preencha todos os campos.');
+        return;
+      }
+
+      if (password.length < 6) {
+        showError('A senha deve ter no mínimo 6 caracteres.');
+        return;
+      }
+
+      // Try login first
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (!loginError && loginData.user) {
+        currentUser = loginData.user;
+        showDashboard();
+        return;
+      }
+
+      // If login fails, try signup
+      if (loginError && loginError.message.includes('Invalid login credentials')) {
+        const { data: signupData, error: signupError } = await supabase.auth.signUp({
+          email,
+          password
+        });
+
+        if (signupError) {
+          showError('Erro ao criar conta: ' + signupError.message);
+          return;
+        }
+
+        if (signupData.user) {
+          currentUser = signupData.user;
+          showSuccess('Conta criada com sucesso!');
+          setTimeout(() => showDashboard(), 1000);
+        }
+      } else {
+        showError('Erro no login: ' + loginError.message);
+      }
+    }
+
+    async function handleLogout() {
+      await supabase.auth.signOut();
+      currentUser = null;
+      authSection.classList.remove('hidden');
+      dashboardSection.classList.add('hidden');
+      logoutBtn.classList.add('hidden');
+      clearMessages();
+      document.getElementById('emailInput').value = '';
+      document.getElementById('passwordInput').value = '';
+    }
+
+    function showDashboard() {
+      authSection.classList.add('hidden');
+      dashboardSection.classList.remove('hidden');
+      logoutBtn.classList.remove('hidden');
+      
+      // Set default date to today
+      document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+      
+      loadDashboardData();
+    }
+
+    // Data Functions
+    async function loadDashboardData() {
+      await Promise.all([loadSummary(), loadTransactions()]);
+    }
+
+    async function loadSummary() {
+      const { start, end } = getCurrentMonthRange();
+      
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('tipo, valor')
+        .eq('user_id', currentUser.id)
+        .gte('data', start)
+        .lte('data', end);
+
+      if (error) {
+        console.error('Erro ao carregar resumo:', error);
+        return;
+      }
+
+      let income = 0;
+      let expense = 0;
+
+      data.forEach(tx => {
+        if (tx.tipo === 'receita') {
+          income += parseFloat(tx.valor);
+        } else {
+          expense += parseFloat(tx.valor);
+        }
+      });
+
+      const balance = income - expense;
+
+      totalIncome.textContent = formatCurrency(income);
+      totalExpense.textContent = formatCurrency(expense);
+      totalBalance.textContent = formatCurrency(balance);
+      
+      // Update balance color
+      totalBalance.className = 'text-2xl font-bold ' + (balance >= 0 ? 'text-gold' : 'text-expense');
+    }
+
+    async function loadTransactions() {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('data', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('Erro ao carregar transações:', error);
+        transactionsList.innerHTML = '<p class="text-expense text-center py-8">Erro ao carregar transações.</p>';
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        transactionsList.innerHTML = '<p class="text-dark-muted text-center py-8">Nenhuma transação encontrada.</p>';
+        return;
+      }
+
+      transactionsList.innerHTML = data.map(tx => `
+        <div class="flex items-center justify-between p-4 bg-dark-bg rounded-lg border border-dark-muted/10 hover:border-gold/20 transition-colors">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center ${tx.tipo === 'receita' ? 'bg-income/20' : 'bg-expense/20'}">
+              <svg class="w-5 h-5 ${tx.tipo === 'receita' ? 'text-income' : 'text-expense'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                ${tx.tipo === 'receita' 
+                  ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"/>'
+                  : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"/>'}
+              </svg>
+            </div>
+            <div>
+              <p class="font-medium">${tx.categoria}</p>
+              <p class="text-sm text-dark-muted">${formatDate(tx.data)}${tx.descricao ? ' • ' + tx.descricao : ''}</p>
+            </div>
+          </div>
+          <p class="font-semibold ${tx.tipo === 'receita' ? 'text-income' : 'text-expense'}">
+            ${tx.tipo === 'receita' ? '+' : '-'}${formatCurrency(tx.valor)}
+          </p>
+        </div>
+      `).join('');
+    }
+
+    async function handleAddTransaction(e) {
+      e.preventDefault();
+
+      const tipo = document.getElementById('txType').value;
+      const categoria = document.getElementById('txCategory').value.trim();
+      const valor = parseFloat(document.getElementById('txValue').value);
+      const data = document.getElementById('txDate').value;
+      const descricao = document.getElementById('txDescription').value.trim();
+
+      if (!tipo || !categoria || !valor || !data) {
+        alert('Por favor, preencha todos os campos obrigatórios.');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: currentUser.id,
+          tipo,
+          categoria,
+          valor,
+          data,
+          descricao: descricao || null
+        });
+
+      if (error) {
+        console.error('Erro ao adicionar transação:', error);
+        alert('Erro ao adicionar transação: ' + error.message);
+        return;
+      }
+
+      // Reset form
+      transactionForm.reset();
+      document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+
+      // Reload data
+      loadDashboardData();
+    }
+
+    // Initialize
+    async function init() {
+      // Check existing session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session && session.user) {
+        currentUser = session.user;
+        showDashboard();
+      }
+
+      // Listen for auth changes
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT') {
+          currentUser = null;
+          authSection.classList.remove('hidden');
+          dashboardSection.classList.add('hidden');
+          logoutBtn.classList.add('hidden');
+        }
+      });
+    }
+
+    // Event Listeners
+    authForm.addEventListener('submit', handleAuth);
+    logoutBtn.addEventListener('click', handleLogout);
+    transactionForm.addEventListener('submit', handleAddTransaction);
+
+    // Start app
+    init();
+  </script>
+</body>
+</html>
